@@ -21,6 +21,7 @@ h1{font-size:15px;font-weight:600;color:var(--mut);margin:0 0 8px}
 .cv input{width:100%;margin-top:4px;padding:10px;font:inherit;font-size:18px;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:8px;font-variant-numeric:tabular-nums}
 .cv input:focus{outline:2px solid var(--acc);border-color:transparent}
 .cv span{padding-top:18px;color:var(--mut)}
+.sec .cv{border:0;padding-top:12px}
 .sec{border-top:1px solid var(--line);margin-top:20px;padding-top:16px;text-align:left}
 .sec h2{font-size:12px;font-weight:600;color:var(--mut);margin:0 0 8px}
 .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -49,6 +50,11 @@ button{margin-top:20px;padding:8px 16px;font:inherit;font-size:14px;color:var(--
     <h2>업비트 USDT 가격</h2>
     <div class="row"><span id="usdt">—</span><span id="prem"></span></div>
     <div id="usrc" style="font-size:12px;color:var(--mut)"></div>
+    <div class="cv">
+      <label>테더 (USDT)<input id="ut" inputmode="decimal" value="100"></label>
+      <span>=</span>
+      <label>원 (KRW)<input id="uk" inputmode="decimal"></label>
+    </div>
   </section>
   <section class="sec">
     <h2>내 테더(USDT) 주소 · TRC20</h2>
@@ -83,7 +89,7 @@ button{margin-top:20px;padding:8px 16px;font:inherit;font-size:14px;color:var(--
         return {p:t.last,s:'업비트 시세 · CoinGecko 경유 (수 분 지연)'};
       });
     }).then(function(d){
-      tp=d.p;$('usdt').textContent=nf(tp,2)+'원';$('usrc').textContent=d.s;prem();
+      tp=d.p;$('usdt').textContent=nf(tp,2)+'원';$('usrc').textContent=d.s;prem();fromUt();
     }).catch(function(){if(!tp)$('usdt').textContent='불러오기 실패'});
   }
   [].forEach.call(document.querySelectorAll('[data-c]'),function(b){
@@ -97,6 +103,10 @@ button{margin-top:20px;padding:8px 16px;font:inherit;font-size:14px;color:var(--
   function fromUsd(){var v=num(usd.value);krw.value=rate&&!isNaN(v)?nf(v*rate,0):''}
   function fromKrw(){var v=num(krw.value);usd.value=rate&&!isNaN(v)?nf(v/rate,2):''}
   usd.oninput=fromUsd; krw.oninput=fromKrw;
+  var ut=$('ut'), uk=$('uk');
+  function fromUt(){var v=num(ut.value);uk.value=tp&&!isNaN(v)?nf(v*tp,0):''}
+  function fromUk(){var v=num(uk.value);ut.value=tp&&!isNaN(v)?nf(v/tp,2):''}
+  ut.oninput=fromUt; uk.oninput=fromUk;
 
   function get(url){
     var c=new AbortController(),t=setTimeout(function(){c.abort()},5000);
