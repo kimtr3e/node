@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>오늘의 원달러 환율</title>
+<link rel="preconnect" href="https://open.er-api.com" crossorigin>
+<style>
+:root{--bg:#fff;--fg:#111;--mut:#666;--line:#e5e5e5;--acc:#0a7}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--mut:#999;--line:#333;--acc:#3c9}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center}
+main{width:100%;max-width:420px;padding:24px 16px;text-align:center}
+h1{font-size:15px;font-weight:600;color:var(--mut);margin:0 0 8px}
+#rate{font-size:clamp(40px,12vw,56px);font-weight:700;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+#rate small{font-size:20px;font-weight:500;margin-left:4px}
+#meta{font-size:13px;color:var(--mut);margin:4px 0 24px}
+.cv{display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding-top:20px}
+.cv label{flex:1;text-align:left;font-size:12px;color:var(--mut)}
+.cv input{width:100%;margin-top:4px;padding:10px;font:inherit;font-size:18px;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:8px;font-variant-numeric:tabular-nums}
+.cv input:focus{outline:2px solid var(--acc);border-color:transparent}
+.cv span{padding-top:18px;color:var(--mut)}
+button{margin-top:20px;padding:8px 16px;font:inherit;font-size:14px;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:8px;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+  <h1>USD → KRW 원달러 환율</h1>
+  <div id="rate">—</div>
+  <div id="meta">불러오는 중…</div>
+  <div class="cv">
+    <label>달러 (USD)<input id="usd" inputmode="decimal" value="1"></label>
+    <span>=</span>
+    <label>원 (KRW)<input id="krw" inputmode="decimal"></label>
+  </div>
+  <button id="re" type="button">새로고침</button>
+</main>
+<script>
+(function(){
+  var K='usdkrw', $=function(i){return document.getElementById(i)};
+  var rateEl=$('rate'), meta=$('meta'), usd=$('usd'), krw=$('krw'), rate=0;
+  var nf=function(n,d){return n.toLocaleString('ko-KR',{maximumFractionDigits:d})};
+  var num=function(v){return parseFloat(String(v).replace(/,/g,''))};
+
+  function show(r,date,src,stale){
+    rate=r;
+    rateEl.innerHTML=nf(r,2)+'<small>원</small>';
+    meta.textContent=date+' 기준 · '+src+(stale?' (저장된 값)':'');
+    fromUsd();
+  }
+  function fromUsd(){var v=num(usd.value);krw.value=rate&&!isNaN(v)?nf(v*rate,0):''}
+  function fromKrw(){var v=num(krw.value);usd.value=rate&&!isNaN(v)?nf(v/rate,2):''}
+  usd.oninput=fromUsd; krw.oninput=fromKrw;
+
+  function get(url){
+    var c=new AbortController(),t=setTimeout(function(){c.abort()},5000);
+    return fetch(url,{signal:c.signal}).then(function(r){clearTimeout(t);if(!r.ok)throw 0;return r.json()});
+  }
+  // 1순위: ExchangeRate-API (일 1회 갱신), 2순위: jsDelivr CDN 환율 데이터
+  function primary(){
+    return get('https://open.er-api.com/v6/latest/USD').then(function(j){
+      if(j.result!=='success'||!j.rates.KRW)throw 0;
+      var d=new Date(j.time_last_update_unix*1000);
+      return {r:j.rates.KRW,date:d.toLocaleDateString('ko-KR'),src:'ExchangeRate-API'};
+    });
+  }
+  function fallback(){
+    return get('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json').then(function(j){
+      if(!j.usd||!j.usd.krw)throw 0;
+      return {r:j.usd.krw,date:j.date,src:'currency-api'};
+    });
+  }
+
+  function load(){
+    meta.textContent='불러오는 중…';
+    primary().catch(fallback).then(function(d){
+      show(d.r,d.date,d.src);
+      try{localStorage.setItem(K,JSON.stringify(d))}catch(e){}
+    }).catch(function(){
+      if(!rate)meta.textContent='환율을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      else meta.textContent+=' · 갱신 실패';
+    });
+  }
+
+  // 저장된 값이 있으면 즉시 표시 후 최신 값으로 갱신
+  try{var c=JSON.parse(localStorage.getItem(K));if(c&&c.r)show(c.r,c.date,c.src,true)}catch(e){}
+  $('re').onclick=load;
+  load();
+})();
+</script>
+</body>
+</html>
