@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>오늘의 원달러 환율</title>
 <link rel="preconnect" href="https://open.er-api.com" crossorigin>
+<link rel="preconnect" href="https://api.upbit.com" crossorigin>
 <style>
 :root{--bg:#fff;--fg:#111;--mut:#666;--line:#e5e5e5;--acc:#0a7}
 @media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--mut:#999;--line:#333;--acc:#3c9}}
@@ -20,6 +21,17 @@ h1{font-size:15px;font-weight:600;color:var(--mut);margin:0 0 8px}
 .cv input{width:100%;margin-top:4px;padding:10px;font:inherit;font-size:18px;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:8px;font-variant-numeric:tabular-nums}
 .cv input:focus{outline:2px solid var(--acc);border-color:transparent}
 .cv span{padding-top:18px;color:var(--mut)}
+.sec{border-top:1px solid var(--line);margin-top:20px;padding-top:16px;text-align:left}
+.sec h2{font-size:12px;font-weight:600;color:var(--mut);margin:0 0 8px}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+#usdt{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+#prem{font-size:13px;color:var(--mut)}
+.w{display:flex;align-items:center;gap:8px;padding:8px 0}
+.w div{flex:1;min-width:0}
+.w b{display:block;font-size:13px}
+.w code{display:block;font-size:12px;color:var(--mut);overflow-wrap:anywhere;user-select:all}
+.w button{margin:0;flex:none;padding:6px 12px}
+.w button.ok{color:var(--acc);border-color:var(--acc)}
 button{margin-top:20px;padding:8px 16px;font:inherit;font-size:14px;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:8px;cursor:pointer}
 </style>
 </head>
@@ -33,6 +45,15 @@ button{margin-top:20px;padding:8px 16px;font:inherit;font-size:14px;color:var(--
     <span>=</span>
     <label>원 (KRW)<input id="krw" inputmode="decimal"></label>
   </div>
+  <section class="sec">
+    <h2>업비트 USDT 가격</h2>
+    <div class="row"><span id="usdt">—</span><span id="prem"></span></div>
+  </section>
+  <section class="sec">
+    <h2>내 테더(USDT) 주소 · TRC20</h2>
+    <div class="w"><div><b>업비트</b><code id="a1">TAWMHGA7YKjg6pZaRe2hWVesK7DkC1bWA7</code></div><button type="button" data-c="a1">복사</button></div>
+    <div class="w"><div><b>OKX</b><code id="a2">TFK7qaLGoWzeWBEGhmJdLasWzZVampZNpz</code></div><button type="button" data-c="a2">복사</button></div>
+  </section>
   <button id="re" type="button">새로고침</button>
 </main>
 <script>
@@ -46,8 +67,23 @@ button{margin-top:20px;padding:8px 16px;font:inherit;font-size:14px;color:var(--
     rate=r;
     rateEl.innerHTML=nf(r,2)+'<small>원</small>';
     meta.textContent=date+' 기준 · '+src+(stale?' (저장된 값)':'');
-    fromUsd();
+    fromUsd();prem();
   }
+  var tp=0;
+  function prem(){if(rate&&tp){var p=(tp/rate-1)*100;$('prem').textContent='김프 '+(p>=0?'+':'')+p.toFixed(2)+'%'}}
+  function upbit(){
+    get('https://api.upbit.com/v1/ticker?markets=KRW-USDT').then(function(j){
+      tp=j[0].trade_price;$('usdt').textContent=nf(tp,2)+'원';prem();
+    }).catch(function(){if(!tp)$('usdt').textContent='불러오기 실패'});
+  }
+  [].forEach.call(document.querySelectorAll('[data-c]'),function(b){
+    b.onclick=function(){
+      var el=$(b.dataset.c),t=el.textContent;
+      function done(){b.textContent='복사됨';b.className='ok';setTimeout(function(){b.textContent='복사';b.className=''},1500)}
+      function sel(){var r=document.createRange();r.selectNodeContents(el);var s=getSelection();s.removeAllRanges();s.addRange(r);try{document.execCommand('copy')&&done()}catch(e){}}
+      navigator.clipboard?navigator.clipboard.writeText(t).then(done,sel):sel();
+    };
+  });
   function fromUsd(){var v=num(usd.value);krw.value=rate&&!isNaN(v)?nf(v*rate,0):''}
   function fromKrw(){var v=num(krw.value);usd.value=rate&&!isNaN(v)?nf(v/rate,2):''}
   usd.oninput=fromUsd; krw.oninput=fromKrw;
@@ -73,6 +109,7 @@ button{margin-top:20px;padding:8px 16px;font:inherit;font-size:14px;color:var(--
 
   function load(){
     meta.textContent='불러오는 중…';
+    upbit();
     primary().catch(fallback).then(function(d){
       show(d.r,d.date,d.src);
       try{localStorage.setItem(K,JSON.stringify(d))}catch(e){}
