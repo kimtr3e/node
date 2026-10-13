@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>오늘의 원달러 환율</title>
 <link rel="preconnect" href="https://open.er-api.com" crossorigin>
-<link rel="preconnect" href="https://api.upbit.com" crossorigin>
+<link rel="preconnect" href="https://api.coingecko.com" crossorigin>
 <style>
 :root{--bg:#fff;--fg:#111;--mut:#666;--line:#e5e5e5;--acc:#0a7}
 @media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--mut:#999;--line:#333;--acc:#3c9}}
@@ -48,6 +48,7 @@ button{margin-top:20px;padding:8px 16px;font:inherit;font-size:14px;color:var(--
   <section class="sec">
     <h2>업비트 USDT 가격</h2>
     <div class="row"><span id="usdt">—</span><span id="prem"></span></div>
+    <div id="usrc" style="font-size:12px;color:var(--mut)"></div>
   </section>
   <section class="sec">
     <h2>내 테더(USDT) 주소 · TRC20</h2>
@@ -71,9 +72,18 @@ button{margin-top:20px;padding:8px 16px;font:inherit;font-size:14px;color:var(--
   }
   var tp=0;
   function prem(){if(rate&&tp){var p=(tp/rate-1)*100;$('prem').textContent='김프 '+(p>=0?'+':'')+p.toFixed(2)+'%'}}
+  // 1순위: 업비트 직접(브라우저 차단 시 실패), 2순위: CoinGecko의 업비트 USDT/KRW 시세
   function upbit(){
     get('https://api.upbit.com/v1/ticker?markets=KRW-USDT').then(function(j){
-      tp=j[0].trade_price;$('usdt').textContent=nf(tp,2)+'원';prem();
+      return {p:j[0].trade_price,s:'업비트 실시간'};
+    }).catch(function(){
+      return get('https://api.coingecko.com/api/v3/exchanges/upbit/tickers?coin_ids=tether').then(function(j){
+        var t=j.tickers.filter(function(x){return x.base==='USDT'&&x.target==='KRW'})[0];
+        if(!t)throw 0;
+        return {p:t.last,s:'업비트 시세 · CoinGecko 경유 (수 분 지연)'};
+      });
+    }).then(function(d){
+      tp=d.p;$('usdt').textContent=nf(tp,2)+'원';$('usrc').textContent=d.s;prem();
     }).catch(function(){if(!tp)$('usdt').textContent='불러오기 실패'});
   }
   [].forEach.call(document.querySelectorAll('[data-c]'),function(b){
